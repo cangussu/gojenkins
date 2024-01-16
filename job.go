@@ -420,14 +420,15 @@ func (j *Job) HasQueuedBuild() {
 }
 
 func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64, error) {
-	isQueued, err := j.IsQueued(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if isQueued {
-		Error.Printf("%s is already running", j.GetName())
-		return 0, nil
-	}
+	// isQueued, err := j.IsQueued(ctx)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// if isQueued {
+	// 	Error.Printf("%s is already running", j.GetName())
+	// 	return 0, nil
+	// }
+	// fmt.Println("aqui")
 
 	endpoint := "/build"
 	parameters, err := j.GetParameters(ctx)
@@ -469,21 +470,21 @@ func (j *Job) InvokeSimple(ctx context.Context, params map[string]string) (int64
 }
 
 func (j *Job) Invoke(ctx context.Context, files []string, skipIfRunning bool, params map[string]string, cause string, securityToken string) (bool, error) {
-	isQueued, err := j.IsQueued(ctx)
-	if err != nil {
-		return false, err
-	}
-	if isQueued {
-		Error.Printf("%s is already running", j.GetName())
-		return false, nil
-	}
-	isRunning, err := j.IsRunning(ctx)
-	if err != nil {
-		return false, err
-	}
-	if isRunning && skipIfRunning {
-		return false, fmt.Errorf("Will not request new build because %s is already running", j.GetName())
-	}
+	// isQueued, err := j.IsQueued(ctx)
+	// if err != nil {
+	// 	return false, err
+	// }
+	// if isQueued {
+	// 	Error.Printf("%s is already running", j.GetName())
+	// 	return false, nil
+	// }
+	// isRunning, err := j.IsRunning(ctx)
+	// if err != nil {
+	// 	return false, err
+	// }
+	// if isRunning && skipIfRunning {
+	// 	return false, fmt.Errorf("will not request new build because %s is already running", j.GetName())
+	// }
 
 	base := "/build"
 
