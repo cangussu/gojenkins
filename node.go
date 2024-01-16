@@ -35,10 +35,13 @@ type Node struct {
 }
 
 type NodeResponse struct {
-	Class       string        `json:"_class"`
-	Actions     []interface{} `json:"actions"`
-	DisplayName string        `json:"displayName"`
-	Executors   []struct {
+	Class          string        `json:"_class"`
+	Actions        []interface{} `json:"actions"`
+	DisplayName    string        `json:"displayName"`
+	AssignedLabels []struct {
+		Name string `json:"name"`
+	} `json:"assignedLabels"`
+	Executors []struct {
 		CurrentExecutable struct {
 			Number    int    `json:"number"`
 			URL       string `json:"url"`
@@ -231,4 +234,14 @@ func (n *Node) GetLogText(ctx context.Context) (string, error) {
 	}
 
 	return log, nil
+}
+
+func (n *Node) GetConfig(ctx context.Context) (string, error) {
+	var config string
+
+	_, err := n.Jenkins.Requester.GetXML(ctx, n.Base+"/config.xml", &config, nil)
+	if err != nil {
+		return "", nil
+	}
+	return config, nil
 }
