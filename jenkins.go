@@ -106,7 +106,7 @@ func (j *Jenkins) SafeRestart(ctx context.Context) error {
 // Example : jenkins.CreateNode("nodeName", 1, "Description", "/var/lib/jenkins", "jdk8 docker", map[string]string{"method": "JNLPLauncher"})
 // By Default JNLPLauncher is created
 // Multiple labels should be separated by blanks
-func (j *Jenkins) CreateNode(ctx context.Context, name string, numExecutors int, description string, remoteFS string, label string, options ...interface{}) (*Node, error) {
+func (j *Jenkins) CreateNode(ctx context.Context, name string, numExecutors int, description string, remoteFS string, label string, envVars []map[string]string, options ...interface{}) (*Node, error) {
 	params := map[string]string{"method": "JNLPLauncher"}
 
 	if len(options) > 0 {
@@ -145,26 +145,42 @@ func (j *Jenkins) CreateNode(ctx context.Context, name string, numExecutors int,
 	}
 
 	node := &Node{Jenkins: j, Raw: new(NodeResponse), Base: "/computer/" + name}
-	NODE_TYPE := "hudson.slaves.DumbSlave$DescriptorImpl"
+	NODE_TYPE := "hudson.slaves.DumbSlave"
 	MODE := "NORMAL"
+
+	properties := map[string]interface{}{"stapler-class-bag": "true"}
+
+	// Add environment variables to the node
+	// Default environment variables if none provided
+	if len(envVars) == 0 {
+		envVars = []map[string]string{
+			{"key": "FOO", "value": "bar"},
+			{"key": "BAZ", "value": "qux"},
+		}
+	}
+
+	// Add environment variables to the node
+	properties["hudson-slaves-EnvironmentVariablesNodeProperty"] = map[string]interface{}{"env": envVars}
+
+	jsonPayload := map[string]interface{}{
+		"name":            name,
+		"nodeDescription": description,
+		"remoteFS":        remoteFS,
+		"numExecutors":    strconv.Itoa(numExecutors),
+		"mode":            MODE,
+		// "type":               NODE_TYPE,
+		"labelString":       label,
+		"retentionStrategy": map[string]string{"stapler-class": "hudson.slaves.RetentionStrategy$Always"},
+		"nodeProperties":    properties,
+		"launcher":          launcher,
+	}
+
 	qr := map[string]string{
 		"name": name,
 		"type": NODE_TYPE,
-		"json": makeJson(map[string]interface{}{
-			"name":               name,
-			"nodeDescription":    description,
-			"remoteFS":           remoteFS,
-			"numExecutors":       numExecutors,
-			"mode":               MODE,
-			"type":               NODE_TYPE,
-			"labelString":        label,
-			"retentionsStrategy": map[string]string{"stapler-class": "hudson.slaves.RetentionStrategy$Always"},
-			"nodeProperties":     map[string]string{"stapler-class-bag": "true"},
-			"launcher":           launcher,
-		}),
 	}
 
-	resp, err := j.Requester.Post(ctx, "/computer/doCreateItem", nil, nil, qr)
+	resp, err := j.Requester.PostJSONForm(ctx, "/computer/doCreateItem", jsonPayload, nil, qr)
 
 	if err != nil {
 		return nil, err
@@ -505,7 +521,7 @@ func (j *Jenkins) HasPlugin(ctx context.Context, name string) (*Plugin, error) {
 	return p.Contains(name), nil
 }
 
-//InstallPlugin with given version and name
+// InstallPlugin with given version and name
 func (j *Jenkins) InstallPlugin(ctx context.Context, name string, version string) error {
 	xml := fmt.Sprintf(`<jenkins><install plugin="%s@%s" /></jenkins>`, name, version)
 	resp, err := j.Requester.PostXML(ctx, "/pluginManager/installNecessaryPlugins", xml, j.Raw, map[string]string{})
@@ -555,11 +571,13 @@ func (j *Jenkins) GetAllViews(ctx context.Context) ([]*View, error) {
 // First Parameter - name of the View
 // Second parameter - Type
 // Possible Types:
-// 		gojenkins.LIST_VIEW
-// 		gojenkins.NESTED_VIEW
-// 		gojenkins.MY_VIEW
-// 		gojenkins.DASHBOARD_VIEW
-// 		gojenkins.PIPELINE_VIEW
+//
+//	gojenkins.LIST_VIEW
+//	gojenkins.NESTED_VIEW
+//	gojenkins.MY_VIEW
+//	gojenkins.DASHBOARD_VIEW
+//	gojenkins.PIPELINE_VIEW
+//
 // Example: jenkins.CreateView("newView",gojenkins.LIST_VIEW)
 func (j *Jenkins) CreateView(ctx context.Context, name string, viewType string) (*View, error) {
 	view := &View{Jenkins: j, Raw: new(ViewResponse), Base: "/view/" + name}

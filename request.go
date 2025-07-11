@@ -274,3 +274,24 @@ func (r *Requester) ReadJSONResponse(response *http.Response, responseStruct int
 	json.NewDecoder(response.Body).Decode(responseStruct)
 	return response, nil
 }
+
+// PostJSONForm sends a JSON payload as a url-encoded form field named 'json', matching the behavior of:
+// curl ... -d "json=<json string>" ...
+func (r *Requester) PostJSONForm(ctx context.Context, endpoint string, payload interface{}, responseStruct interface{}, querystring map[string]string) (*http.Response, error) {
+	jsonBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	jsonStr := string(jsonBytes)
+	form := url.Values{}
+	form.Set("json", jsonStr)
+	body := strings.NewReader(form.Encode())
+
+	ar := NewAPIRequest("POST", endpoint, body)
+	if err := r.SetCrumb(ctx, ar); err != nil {
+		return nil, err
+	}
+	ar.SetHeader("Content-Type", "application/x-www-form-urlencoded")
+	ar.Suffix = ""
+	return r.Do(ctx, ar, &responseStruct, querystring)
+}
